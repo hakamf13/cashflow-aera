@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  products      Product[]
+  transactions  Transaction[]
+  cashflows     Cashflow[]
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  priceSell  Float
+  priceCost  Float
+  stock      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User @relation(fields: [userId], references: [id])
+  items      TransactionItem[]
+}
+
+model PaymentMethod {
+  id   String @id @default(cuid())
+  name String
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id               String   @id @default(cuid())
+  userId           String
+  date             DateTime
+  totalAmount      Float
+  totalProfit      Float
+  paymentMethodId  String
+  note             String?
+  createdAt        DateTime @default(now())
+
+  user             User @relation(fields: [userId], references: [id])
+  paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  items            TransactionItem[]
+}
+
+model TransactionItem {
+  id            String  @id @default(cuid())
+  transactionId String
+  productId     String
+  quantity      Int
+  priceSell     Float
+  priceCost     Float
+  subtotal      Float
+  profit        Float
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  product       Product @relation(fields: [productId], references: [id])
+}
+
+model Cashflow {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  amount      Float
+  date        DateTime
+  note        String?
+  referenceId String?
+
+  user        User @relation(fields: [userId], references: [id])
+}
