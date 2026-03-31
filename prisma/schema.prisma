@@ -44,12 +44,14 @@ model Transaction {
   date             DateTime
   totalAmount      Float
   totalProfit      Float
-  paymentMethodId  String
+  paymentMethodId  String?  // 🔥 optional
   note             String?
   createdAt        DateTime @default(now())
 
   user             User @relation(fields: [userId], references: [id])
-  paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  paymentMethod    PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+
   items            TransactionItem[]
 }
 
@@ -63,7 +65,8 @@ model TransactionItem {
   subtotal      Float
   profit        Float
 
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
   product       Product @relation(fields: [productId], references: [id])
 }
 

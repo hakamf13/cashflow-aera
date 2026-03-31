@@ -1,157 +1,155 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetcher } from "@/lib/fetcher";
 
-export default function TransactionHistory() {
+export default function HistoryPage() {
   const [data, setData] = useState<any[]>([]);
-  const [filter, setFilter] = useState("all");
+  const [filtered, setFiltered] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
-    let url = "/api/transactions";
+  const [methodFilter, setMethodFilter] = useState("");
+  const [methods, setMethods] = useState<any[]>([]);
 
-    if (filter === "today") {
-        const today = new Date();
-        const start = new Date(today.setHours(0, 0, 0, 0));
-        const end = new Date(today.setHours(23, 59, 59, 999));
+  const loadData = async () => {
+    setLoading(true);
 
-        url += `?start=${start.toISOString()}&end=${end.toISOString()}`;
+    const res = await fetcher("/api/transactions");
+    const methodRes = await fetcher("/api/payment-methods");
+
+    setData(res);
+    setFiltered(res);
+    setMethods(methodRes);
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // 🔍 FILTER
+  useEffect(() => {
+    let temp = [...data];
+
+    if (methodFilter) {
+      temp = temp.filter(
+        (trx) => trx.paymentMethodId === methodFilter
+      );
     }
 
-    if (filter === "month") {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        const end = new Date();
+    setFiltered(temp);
+  }, [methodFilter, data]);
 
-        url += `?start=${start.toISOString()}&end=${end.toISOString()}`;
+  // ❌ DELETE
+  const handleDelete = async (id: string) => {
+    if (!confirm("Hapus transaksi ini?")) return;
+
+    const res = await fetch("/api/transactions", {
+      method: "DELETE",
+      body: JSON.stringify({ id }),
+    });
+
+    const result = await res.json();
+
+    if (!result.success) {
+        alert(result.message);
+        return;
     }
 
-    const res = await fetch(url);
-    const json = await res.json();
-
-    if (json.success) {
-        setData(json.data);
-    }
-    };
-
-    useEffect(() => {
-    fetchData();
-    }, [filter]);
-
-    const getQueryParams = () => {
-        if (filter === "today") {
-            const today = new Date();
-            const start = new Date(today.setHours(0, 0, 0, 0));
-            const end = new Date(today.setHours(23, 59, 59, 999));
-
-            return `?start=${start.toISOString()}&end=${end.toISOString()}`;
-        }
-
-        if (filter === "month") {
-            const now = new Date();
-            const start = new Date(now.getFullYear(), now.getMonth(), 1);
-            const end = new Date();
-
-            return `?start=${start.toISOString()}&end=${end.toISOString()}`;
-        }
-
-        return "";
-        };
+    await loadData();
+  };
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">
+      <h1 className="text-xl font-bold mb-4">
         Transaction History
       </h1>
 
-      {/* 🔥 TARUH DI SINI */}
-
-    <div className="flex gap-2 mb-4">
-        <button
-            onClick={() => setFilter("all")}
-            className="bg-gray-500 text-white px-3 py-1 rounded"
+      {/* FILTER */}
+      <div className="mb-4 flex gap-4">
+        <select
+          value={methodFilter}
+          onChange={(e) => setMethodFilter(e.target.value)}
+          className="border p-2"
         >
-            All
-        </button>
+          <option value="">All Payment</option>
+          {methods.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        <button
-            onClick={() => setFilter("today")}
-            className="bg-blue-500 text-white px-3 py-1 rounded"
-        >
-            Today
-        </button>
-
-        <button
-            onClick={() => setFilter("month")}
-            className="bg-purple-500 text-white px-3 py-1 rounded"
-        >
-            This Month
-        </button>
-    </div>
-        <button
-            onClick={() =>
-                window.open(
-                "/api/export/transactions" + getQueryParams(),
-                "_blank"
-                )
-            }
-            className="mb-4 bg-green-600 text-white px-4 py-2 rounded"
-            >
-            Download Excel
-        </button>
-
-        <button
-            onClick={() =>
-                window.open(
-                "/api/export/transactions-pdf" + getQueryParams(),
-                "_blank"
-                )
-            }
-            className="mb-4 ml-2 bg-red-600 text-white px-4 py-2 rounded"
-            >
-            Download PDF
-        </button>
-
-      {data.length === 0 ? (
-        <p>No data</p>
+      {/* TABLE */}
+      {loading ? (
+        <p>Loading...</p>
       ) : (
-        data.map((trx) => (
-          <div
-            key={trx.id}
-            className="border p-4 rounded mb-4"
-          >
-            <div className="flex justify-between">
-              <div>
-                <p className="font-bold">
-                  Rp {trx.totalAmount.toLocaleString()}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Profit: Rp{" "}
-                  {trx.totalProfit.toLocaleString()}
-                </p>
-              </div>
+        <div className="bg-white rounded-xl shadow overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-2 text-left">Date</th>
+                <th className="p-2 text-left">Items</th>
+                <th className="p-2">Total</th>
+                <th className="p-2">Profit</th>
+                <th className="p-2">Payment</th>
+                <th className="p-2">Action</th>
+              </tr>
+            </thead>
 
-              <div className="text-sm text-gray-400">
-                {new Date(trx.date).toLocaleString()}
-              </div>
-            </div>
+            <tbody>
+              {filtered.map((trx) => (
+                <tr key={trx.id} className="border-t">
+                  <td className="p-2">
+                    {new Date(trx.date).toLocaleString()}
+                  </td>
 
-            <div className="mt-3">
-              {trx.items.map((item: any) => (
-                <div
-                  key={item.id}
-                  className="text-sm flex justify-between"
-                >
-                  <span>
-                    {item.product.name} x {item.quantity}
-                  </span>
-                  <span>
-                    Rp {item.subtotal.toLocaleString()}
-                  </span>
-                </div>
+                  <td className="p-2">
+                    {trx.items.map((i: any) => (
+                      <div key={i.id}>
+                        {i.product?.name} x{i.quantity}
+                      </div>
+                    ))}
+                  </td>
+
+                  <td className="p-2 text-center">
+                    Rp {trx.totalAmount.toLocaleString()}
+                  </td>
+
+                  <td className="p-2 text-center">
+                    Rp {trx.totalProfit.toLocaleString()}
+                  </td>
+
+                  <td className="p-2 text-center">
+                    {trx.paymentMethod?.name || "-"}
+                  </td>
+
+                  <td className="p-2 text-center">
+                    <button
+                      onClick={() => handleDelete(trx.id)}
+                      className="text-red-500"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
-        ))
+
+              {filtered.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="text-center p-4 text-gray-500"
+                  >
+                    No data
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

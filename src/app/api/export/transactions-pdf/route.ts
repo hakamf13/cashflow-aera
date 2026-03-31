@@ -2,22 +2,26 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import path from "path";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../auth/[...nextauth]/route";
 
 export async function GET(req: Request) {
   try {
-    // 🔥 GET FILTER PARAM
     const { searchParams } = new URL(req.url);
     const start = searchParams.get("start");
     const end = searchParams.get("end");
 
-    // 🔥 USER
-    const user = await prisma.user.findFirst();
-    if (!user) throw new Error("User not found");
+    const session = await getServerSession(authOptions);
 
-    // 🔥 QUERY (PAKAI FILTER)
+    if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+    }
+
+    const userId = session.user.id;
+
     const transactions = await prisma.transaction.findMany({
       where: {
-        userId: user.id,
+        userId,
         ...(start && end
           ? {
               date: {
@@ -37,7 +41,6 @@ export async function GET(req: Request) {
       orderBy: { date: "desc" },
     });
 
-    // 🔥 LOAD FONT (ANTI HELVETICA ERROR)
     const fontPath = path.join(
       process.cwd(),
       "public/fonts/Roboto-Regular.ttf"
@@ -47,14 +50,11 @@ export async function GET(req: Request) {
       font: fontPath,
     });
 
-    // 🔥 STREAM TO BUFFER
     const buffer = await new Promise<Buffer>((resolve) => {
       const data: Uint8Array[] = [];
 
       doc.on("data", (chunk) => data.push(chunk));
       doc.on("end", () => resolve(Buffer.concat(data)));
-
-      // ===== PDF CONTENT =====
 
       doc.fontSize(18).text("Transaction Report", {
         align: "center",
@@ -90,18 +90,12 @@ export async function GET(req: Request) {
 
       doc.moveDown();
 
-      doc
-        .fontSize(14)
-        .text(`Total Income: Rp ${totalIncome.toLocaleString()}`);
-
-      doc
-        .fontSize(14)
-        .text(`Total Profit: Rp ${totalProfit.toLocaleString()}`);
+      doc.text(`Total Income: Rp ${totalIncome.toLocaleString()}`);
+      doc.text(`Total Profit: Rp ${totalProfit.toLocaleString()}`);
 
       doc.end();
     });
 
-    // 🔥 RETURN PDF
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",
@@ -110,13 +104,8 @@ export async function GET(req: Request) {
       },
     });
   } catch (error: any) {
-    console.error(error);
-
     return NextResponse.json(
-      {
-        success: false,
-        message: error.message,
-      },
+      { success: false, message: error.message },
       { status: 500 }
     );
   }

@@ -11,10 +11,12 @@
   "dependencies": {
     "@prisma/client": "^6.19.2",
     "next": "16.2.1",
+    "next-auth": "^4.24.13",
     "pdfkit": "^0.18.0",
     "prisma": "^6.19.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "recharts": "^3.8.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -28,5 +30,8 @@
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }

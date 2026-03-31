@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../auth/[...nextauth]/route";
 
 export async function GET(req: Request) {
   try {
@@ -11,13 +13,18 @@ export async function GET(req: Request) {
     const end = searchParams.get("end");
 
     // 🔥 Ambil user
-    const user = await prisma.user.findFirst();
-    if (!user) throw new Error("User not found");
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+    }
+
+    const userId = session.user.id;
 
     // 🔥 Query transaksi + filter tanggal
     const transactions = await prisma.transaction.findMany({
       where: {
-        userId: user.id,
+        userId: userId,
         ...(start && end
           ? {
               date: {

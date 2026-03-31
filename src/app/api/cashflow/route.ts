@@ -1,14 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
 
 export async function GET() {
   try {
-    const user = await prisma.user.findFirst();
-    if (!user) throw new Error("User not found");
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
 
     const cashflows = await prisma.cashflow.findMany({
       where: {
-        userId: user.id,
+        userId: session.user.id,
       },
       orderBy: {
         date: "desc",

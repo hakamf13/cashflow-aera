@@ -1,130 +1,127 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
 
-    const { items, paymentMethodId, note } = body;
+    const userId = session.user.id;
 
-    const user = await prisma.user.findFirst();
-    if (!user) throw new Error("User not found");
+    const { items, paymentMethodId, note } = await req.json();
 
     let totalAmount = 0;
     let totalProfit = 0;
 
-    // hitung total
-    for (const item of items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-      });
+    // 🔥 ambil semua product sekali
+    const productIds = items.map((i: any) => i.productId);
 
-      if (!product) throw new Error("Product not found");
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+    });
 
-      const subtotal = product.priceSell * item.quantity;
-      const profit =
-        (product.priceSell - product.priceCost) * item.quantity;
+    const productMap = Object.fromEntries(
+      products.map((p) => [p.id, p])
+    );
 
-      totalAmount += subtotal;
-      totalProfit += profit;
-    }
-
-    // buat transaksi
-    const transaction = 
-    await prisma.transaction.create({
+    const transaction = await prisma.transaction.create({
       data: {
-        userId: user.id,
+        userId,
         date: new Date(),
-        totalAmount,
-        totalProfit,
+        totalAmount: 0,
+        totalProfit: 0,
         paymentMethodId,
         note,
         items: {
-          create: await Promise.all(
-            items.map(async (item: { productId: any; quantity: number; }) => {
-              const product = await prisma.product.findUnique({
-                where: { id: item.productId },
-              });
+          create: items.map((item: any) => {
+            const product = productMap[item.productId];
+            if (!product) throw new Error("Product not found");
 
-              return {
-                productId: item.productId,
-                quantity: item.quantity,
-                priceSell: product!.priceSell,
-                priceCost: product!.priceCost,
-                subtotal: product!.priceSell * item.quantity,
-                profit:
-                  (product!.priceSell - product!.priceCost) *
-                  item.quantity,
-              };
-            })
-          ),
+            const subtotal = product.priceSell * item.quantity;
+            const profit =
+              (product.priceSell - product.priceCost) *
+              item.quantity;
+
+            totalAmount += subtotal;
+            totalProfit += profit;
+
+            return {
+              productId: item.productId,
+              quantity: item.quantity,
+              priceSell: product.priceSell,
+              priceCost: product.priceCost,
+              subtotal,
+              profit,
+            };
+          }),
         },
       },
     });
 
+    // update total setelah create
+    await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { totalAmount, totalProfit },
+    });
+
+    // cashflow
     await prisma.cashflow.create({
-        data: {
-            userId: user.id,
-            type: "IN",
-            amount: totalAmount,
-            date: new Date(),
-            note: "Income from transaction",
-            referenceId: transaction.id,
-        },
+      data: {
+        userId,
+        type: "IN",
+        amount: totalAmount,
+        date: new Date(),
+        note: "Income from transaction",
+        referenceId: transaction.id,
+      },
     });
 
     // update stock
-    for (const item of items) {
-      await prisma.product.update({
-        where: { id: item.productId },
-        data: {
-          stock: {
-            decrement: item.quantity,
+    await Promise.all(
+      items.map((item: any) =>
+        prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: { decrement: item.quantity },
           },
+        })
+      )
+    );
+
+    const fullTransaction = await prisma.transaction.findUnique({
+      where: { id: transaction.id },
+      include: {
+        paymentMethod: true,
+        items: {
+          include: { product: true },
         },
-      });
-    }
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      data: transaction,
+      data: fullTransaction,
     });
   } catch (error: any) {
-    console.error("TRANSACTION ERROR:", error);
-
+    console.error(error);
     return NextResponse.json(
-      {
-        success: false,
-        message: error.message,
-      },
+      { success: false, message: error.message },
       { status: 500 }
     );
   }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-
-    const start = searchParams.get("start");
-    const end = searchParams.get("end");
-
-    const user = await prisma.user.findFirst();
-    if (!user) throw new Error("User not found");
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
 
     const transactions = await prisma.transaction.findMany({
-      where: {
-        userId: user.id,
-        ...(start && end
-          ? {
-              date: {
-                gte: new Date(start),
-                lte: new Date(end),
-              },
-            }
-          : {}),
-      },
+      where: { userId: session.user.id },
       include: {
+        paymentMethod: true, // 🔥 INI YANG KURANG
         items: {
           include: {
             product: true,
@@ -146,3 +143,50 @@ export async function GET(req: Request) {
   }
 }
 
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
+
+    const userId = session.user.id;
+
+    const { id } = await req.json();
+
+    const trx = await prisma.transaction.findFirst({
+      where: { id, userId }, // 🔥 pastikan milik user
+      include: { items: true },
+    });
+
+    if (!trx) throw new Error("Transaction not found");
+
+    // 🔄 BALIKKAN STOCK
+    await Promise.all(
+      trx.items.map((item) =>
+        prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: { increment: item.quantity },
+          },
+        })
+      )
+    );
+
+    // 💰 HAPUS CASHFLOW
+    await prisma.cashflow.deleteMany({
+      where: { referenceId: id },
+    });
+
+    // ❌ HAPUS TRANSACTION
+    await prisma.transaction.delete({
+      where: { id },
+    });
+
+    return Response.json({ success: true });
+  } catch (err: any) {
+    console.error(err);
+    return Response.json(
+      { success: false, message: err.message },
+      { status: 500 }
+    );
+  }
+}
