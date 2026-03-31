@@ -42,19 +42,21 @@ export default function HistoryPage() {
   }, [methodFilter, data]);
 
   // ❌ DELETE
-  const handleDelete = async (id: string) => {
-    if (!confirm("Hapus transaksi ini?")) return;
 
-    const res = await fetch("/api/transactions", {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+
+    const res = await fetch(`/api/transactions/${id}`, {
       method: "DELETE",
-      body: JSON.stringify({ id }),
     });
 
-    const result = await res.json();
+    setDeletingId(null);
 
-    if (!result.success) {
-        alert(result.message);
-        return;
+    if (!res.ok) {
+      alert("Gagal hapus");
+      return;
     }
 
     await loadData();
@@ -129,9 +131,10 @@ export default function HistoryPage() {
                   <td className="p-2 text-center">
                     <button
                       onClick={() => handleDelete(trx.id)}
+                      disabled={deletingId === trx.id}
                       className="text-red-500"
                     >
-                      Delete
+                      {deletingId === trx.id ? "Deleting..." : "Delete"}
                     </button>
                   </td>
                 </tr>
