@@ -11,6 +11,8 @@ export default function HistoryPage() {
   const [methodFilter, setMethodFilter] = useState("");
   const [methods, setMethods] = useState<any[]>([]);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const loadData = async () => {
     setLoading(true);
 
@@ -41,25 +43,34 @@ export default function HistoryPage() {
     setFiltered(temp);
   }, [methodFilter, data]);
 
-  // ❌ DELETE
-
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
+  // ❌ DELETE (FIXED)
   const handleDelete = async (id: string) => {
-    setDeletingId(id);
+    const confirmDelete = confirm("Hapus transaksi ini?");
+    if (!confirmDelete) return;
 
-    const res = await fetch(`/api/transactions/${id}`, {
-      method: "DELETE",
-    });
+    try {
+      setDeletingId(id);
 
-    setDeletingId(null);
+      const res = await fetch(`/api/transactions/${id}`, {
+        method: "DELETE",
+        credentials: "include", // 🔥 WAJIB
+      });
 
-    if (!res.ok) {
-      alert("Gagal hapus");
-      return;
+      const result = await res.json();
+
+      if (!res.ok) {
+        console.error(result);
+        alert(result.error || "Gagal hapus");
+        return;
+      }
+
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi error");
+    } finally {
+      setDeletingId(null);
     }
-
-    await loadData();
   };
 
   return (
@@ -134,7 +145,9 @@ export default function HistoryPage() {
                       disabled={deletingId === trx.id}
                       className="text-red-500"
                     >
-                      {deletingId === trx.id ? "Deleting..." : "Delete"}
+                      {deletingId === trx.id
+                        ? "Deleting..."
+                        : "Delete"}
                     </button>
                   </td>
                 </tr>
