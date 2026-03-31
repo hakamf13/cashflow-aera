@@ -14,8 +14,12 @@ export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    fetcher("/api/dashboard").then(setData);
-  }, []);
+  fetcher("/api/dashboard").then((res) => {
+    if (res.success) {
+      setData(res.data);
+    }
+  });
+}, []);
 
   if (!data) return <p className="p-6">Loading...</p>;
 

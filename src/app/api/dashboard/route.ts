@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 
@@ -7,94 +7,55 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
+    // 🔥 FIX: jangan throw
     if (!session?.user?.id) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
     const userId = session.user.id;
 
-    const transactions = await prisma.transaction.findMany({
-      where: { userId },
-    });
+    const [income, profit, expense] = await Promise.all([
+      prisma.cashflow.aggregate({
+        where: { userId, type: "IN" },
+        _sum: { amount: true },
+      }),
+      prisma.transaction.aggregate({
+        where: { userId },
+        _sum: { totalProfit: true },
+      }),
+      prisma.cashflow.aggregate({
+        where: { userId, type: "OUT" },
+        _sum: { amount: true },
+      }),
+    ]);
 
-    // 📅 TODAY
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const totalIncome = income._sum.amount || 0;
+    const totalExpense = expense._sum.amount || 0;
+    const totalProfit = profit._sum.totalProfit || 0;
 
-    const todayTransactions = transactions.filter(
-      (t) => new Date(t.date) >= today
-    );
-
-    const totalRevenue = todayTransactions.reduce(
-      (sum, t) => sum + t.totalAmount,
-      0
-    );
-
-    const totalProfit = todayTransactions.reduce(
-      (sum, t) => sum + t.totalProfit,
-      0
-    );
-
-    const totalTransactions = todayTransactions.length;
-
-    // 💰 ALL TIME (UNTUK CARD)
-    const income = transactions.reduce(
-      (sum, t) => sum + t.totalAmount,
-      0
-    );
-
-    const profit = transactions.reduce(
-      (sum, t) => sum + t.totalProfit,
-      0
-    );
-
-    const expense = income - profit;
-    const sharing = profit * 0.05;
-    const netProfit = profit - sharing;
-
-    // 📊 LAST 7 DAYS
-    const last7Days = Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-
-      const dayStr = d.toISOString().split("T")[0];
-
-      const daily = transactions.filter(
-        (t) =>
-          new Date(t.date).toISOString().split("T")[0] === dayStr
-      );
-
-      return {
-        date: dayStr,
-        revenue: daily.reduce((s, t) => s + t.totalAmount, 0),
-        profit: daily.reduce((s, t) => s + t.totalProfit, 0),
-      };
-    }).reverse();
+    const sharing = totalProfit * 0.05;
+    const netProfit = totalProfit - sharing;
+    const balance = totalIncome - totalExpense;
 
     return NextResponse.json({
-      // 🔹 summary today
-      totalRevenue,
-      totalProfit,
-      totalTransactions,
-
-      // 🔹 financial breakdown
-      income,
-      expense,
-      profit,
-      sharing,
-      netProfit,
-
-      // 🔹 chart
-      chart: last7Days,
+      success: true,
+      data: {
+        income: totalIncome,
+        expense: totalExpense,
+        profit: totalProfit,
+        sharing,
+        netProfit,
+        balance,
+      },
     });
   } catch (error) {
     console.error("DASHBOARD ERROR:", error);
 
     return NextResponse.json(
-      { error: "Internal error" },
+      { success: false, message: "Internal error" },
       { status: 500 }
     );
   }
