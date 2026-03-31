@@ -10,22 +10,35 @@ export const authOptions: NextAuthOptions = {
         email: {},
       },
       async authorize(credentials) {
-        if (!credentials?.email) return null;
+        try {
+          console.log("CREDENTIALS:", credentials);
 
-        let user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+          if (!credentials?.email) {
+            console.log("❌ EMAIL KOSONG");
+            return null;
+          }
 
-        if (!user) {
-          user = await prisma.user.create({
-            data: { email: credentials.email },
+          let user = await prisma.user.findUnique({
+            where: { email: credentials.email },
           });
-        }
 
-        return {
-          id: user.id,
-          email: user.email,
-        };
+          if (!user) {
+            console.log("🆕 CREATE USER");
+            user = await prisma.user.create({
+              data: { email: credentials.email },
+            });
+          }
+
+          console.log("✅ LOGIN SUCCESS", user);
+
+          return {
+            id: user.id,
+            email: user.email,
+          };
+        } catch (error) {
+          console.error("🔥 AUTH ERROR:", error);
+          return null;
+        }
       },
     }),
   ],
