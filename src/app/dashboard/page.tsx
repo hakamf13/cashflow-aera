@@ -14,14 +14,32 @@ export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-  fetcher("/api/dashboard").then((res) => {
-    if (res.success) {
-      setData(res.data);
-    }
-  });
-}, []);
+    const load = async () => {
+      try {
+        const res = await fetcher("/api/dashboard");
 
-  if (!data) return <p className="p-6">Loading...</p>;
+        console.log("DASHBOARD RES:", res); // 🔍 debug
+
+        if (res.success) {
+          setData(res.data);
+        } else {
+          console.error("API ERROR:", res);
+        }
+      } catch (err) {
+        console.error("FETCH ERROR:", err);
+      }
+    };
+
+    load();
+  }, []);
+
+  if (!data) {
+  return (
+    <div className="p-6">
+      <p>Loading dashboard...</p>
+    </div>
+  );
+}
 
   const chartData = [
     { name: "Income", value: data.income || 0 },
