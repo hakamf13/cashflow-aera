@@ -20,11 +20,14 @@ export default function DashboardPage() {
   if (!data) return <p className="p-6">Loading...</p>;
 
   const chartData = [
-    { name: "Income", value: data.income },
-    { name: "Expense", value: data.expense },
-    { name: "Profit", value: data.profit },
-    { name: "Sharing", value: data.sharing },
+    { name: "Income", value: data.income || 0 },
+    { name: "Expense", value: data.expense || 0 },
+    { name: "Profit", value: data.profit || 0 },
+    { name: "Sharing", value: data.sharing || 0 },
   ];
+
+  const formatRupiah = (num: number) =>
+    new Intl.NumberFormat("id-ID").format(num);
 
   return (
     <div className="p-6 space-y-6">
@@ -32,7 +35,18 @@ export default function DashboardPage() {
         Dashboard
       </h1>
 
-      {/* CARDS */}
+      {/* 🔥 TODAY SUMMARY */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card title="Revenue Today" value={data.totalRevenue} />
+        <Card title="Profit Today" value={data.totalProfit} />
+        <Card
+          title="Transactions Today"
+          value={data.totalTransactions}
+          isNumber
+        />
+      </div>
+
+      {/* 🔥 FINANCIAL */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card title="Income" value={data.income} />
         <Card title="Expense" value={data.expense} />
@@ -41,7 +55,7 @@ export default function DashboardPage() {
         <Card title="Net Profit" value={data.netProfit} />
       </div>
 
-      {/* CHART */}
+      {/* 🔥 CHART */}
       <div className="bg-white p-4 rounded shadow">
         <h2 className="mb-4 font-semibold text-gray-700">
           Financial Overview
@@ -51,7 +65,7 @@ export default function DashboardPage() {
           <BarChart data={chartData}>
             <XAxis dataKey="name" />
             <Tooltip />
-            <Bar dataKey="value" />
+            <Bar dataKey="value" radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -59,12 +73,14 @@ export default function DashboardPage() {
   );
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value, isNumber = false }: any) {
   return (
     <div className="bg-white p-4 rounded-xl shadow">
       <p className="text-gray-500 text-sm">{title}</p>
       <h2 className="text-lg font-bold text-gray-800">
-        Rp {value.toLocaleString()}
+        {isNumber
+          ? value || 0
+          : `Rp ${(value || 0).toLocaleString()}`}
       </h2>
     </div>
   );
