@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
-
+import { NextRequest } from "next/server";
 
 export async function DELETE(
-  req: Request,
-  context: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> } // 🔥 FIX DI SINI
 ) {
-  const { id } = context.params;
+  const { id } = await context.params; // 🔥 WAJIB DI-AWAIT
 
   try {
     console.log("🆔 DELETE ID:", id);
@@ -16,7 +16,6 @@ export async function DELETE(
     const session = await getServerSession(authOptions);
     console.log("👤 SESSION:", session);
 
-    // ❌ belum login
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -28,7 +27,6 @@ export async function DELETE(
       where: { id },
     });
 
-    // ❌ tidak ditemukan
     if (!transaction) {
       return NextResponse.json(
         { error: "Not found" },
@@ -36,7 +34,6 @@ export async function DELETE(
       );
     }
 
-    // ❌ bukan milik user
     if (transaction.userId !== session.user.id) {
       return NextResponse.json(
         { error: "Forbidden" },
@@ -44,7 +41,6 @@ export async function DELETE(
       );
     }
 
-    // ✅ DELETE (items auto cascade)
     await prisma.transaction.delete({
       where: { id },
     });
