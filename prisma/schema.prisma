@@ -82,7 +82,7 @@ model Cashflow {
   type        CashflowType
   amount      Float
   description String?
-  date        DateTime
+  date        DateTime @default(now())
   note        String?
   referenceId String?
 
