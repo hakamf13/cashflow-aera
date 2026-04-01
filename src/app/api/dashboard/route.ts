@@ -94,11 +94,11 @@ export async function GET() {
         balance,
       },
     });
-  } catch (error) {
-    console.error("DASHBOARD ERROR:", error);
+  } catch (error: any) {
+    console.error("DASHBOARD ERROR FULL:", error);
 
     return NextResponse.json(
-      { success: false, message: "Internal error" },
+      { success: false, message: error.message },
       { status: 500 }
     );
   }
