@@ -32,11 +32,11 @@ export default function ExpensePage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-screen bg-gray-100">
       <h1 className="text-xl font-bold">Expenses</h1>
 
       {/* FORM */}
-      <div className="bg-white p-4 rounded shadow space-y-2">
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
         <input
           type="number"
           placeholder="Amount"
