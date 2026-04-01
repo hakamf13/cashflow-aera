@@ -70,16 +70,10 @@ model TransactionItem {
   product       Product @relation(fields: [productId], references: [id])
 }
 
-enum CashflowType {
-  IN
-  OUT
-  MODAL
-}
-
 model Cashflow {
   id          String   @id @default(cuid())
   userId      String
-  type        CashflowType
+  type        String
   amount      Float
   description String?
   date        DateTime @default(now())
