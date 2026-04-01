@@ -10,7 +10,12 @@ export async function fetcher(url: string, options?: RequestInit) {
     const data = await res.json();
 
     if (!data.success) {
-      signOut({ callbackUrl: "/login" });
+      console.error("API ERROR:", data);
+
+      if (res.status === 401) {
+        signOut({ callbackUrl: "/login" });
+      }
+
       throw new Error(data.message);
     }
 
