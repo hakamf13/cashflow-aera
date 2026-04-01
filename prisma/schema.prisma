@@ -75,6 +75,7 @@ model Cashflow {
   userId      String
   type        String
   amount      Float
+  description String?
   date        DateTime
   note        String?
   referenceId String?
