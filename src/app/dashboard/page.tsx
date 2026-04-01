@@ -18,13 +18,9 @@ export default function DashboardPage() {
       try {
         const res = await fetcher("/api/dashboard");
 
-        console.log("DASHBOARD RES:", res); // 🔍 debug
+        console.log("DASHBOARD RES:", res);
 
-        if (res.success) {
-          setData(res.data);
-        } else {
-          console.error("API ERROR:", res);
-        }
+        setData(res); // ✅ FIX
       } catch (err) {
         console.error("FETCH ERROR:", err);
       }
