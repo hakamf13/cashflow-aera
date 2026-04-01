@@ -44,6 +44,8 @@ export default function DashboardPage() {
     { name: "Sharing", value: data.sharing || 0 },
   ];
 
+  
+
   const formatRupiah = (num: number) =>
     new Intl.NumberFormat("id-ID").format(num);
 
