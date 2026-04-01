@@ -18,6 +18,8 @@ export default function ExpensePage() {
   }, []);
 
   const handleSubmit = async () => {
+    if (!amount) return;
+
     await fetch("/api/expenses", {
       method: "POST",
       body: JSON.stringify({
@@ -33,69 +35,95 @@ export default function ExpensePage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <h1 className="text-xl font-bold">Expenses</h1>
+      <div className="max-w-5xl mx-auto p-6 space-y-6">
 
-      {/* FORM */}
-      <div className="max-w-6xl mx-auto p-6 space-y-6">
-        <input
-          type="number"
-          placeholder="Amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="border p-2 w-full"
-        />
+        {/* HEADER */}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Expenses
+          </h1>
+          <p className="text-sm text-gray-500">
+            Track your spending
+          </p>
+        </div>
 
-        <input
-          type="text"
-          placeholder="Description"
-          value={description}
-          onChange={(e) =>
-            setDescription(e.target.value)
-          }
-          className="border p-2 w-full"
-        />
+        {/* FORM */}
+        <div className="bg-white p-6 rounded-2xl shadow space-y-4">
+          <h2 className="text-lg font-semibold text-gray-700">
+            Add Expense
+          </h2>
 
-        <button
-          onClick={handleSubmit}
-          className="bg-red-500 text-white px-4 py-2 rounded"
-        >
-          Add Expense
-        </button>
-      </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <input
+              type="number"
+              placeholder="Amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
 
-      {/* LIST */}
-      <div className="bg-white rounded shadow">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-2">Date</th>
-              <th>Description</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
+            <input
+              type="text"
+              placeholder="Description"
+              value={description}
+              onChange={(e) =>
+                setDescription(e.target.value)
+              }
+              className="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+          </div>
 
-          <tbody>
-            {data.map((e) => (
-              <tr key={e.id} className="border-t">
-                <td className="p-2">
-                  {new Date(e.date).toLocaleString()}
-                </td>
-                <td>{e.description}</td>
-                <td>
-                  Rp {e.amount.toLocaleString()}
-                </td>
-              </tr>
-            ))}
+          <button
+            onClick={handleSubmit}
+            className="bg-red-500 hover:bg-red-600 transition text-white px-5 py-2 rounded-lg"
+          >
+            Add Expense
+          </button>
+        </div>
 
-            {data.length === 0 && (
+        {/* TABLE */}
+        <div className="bg-white rounded-2xl shadow overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-600">
               <tr>
-                <td colSpan={3} className="p-4 text-center">
-                  No expense yet
-                </td>
+                <th className="p-3 text-left">Date</th>
+                <th className="p-3 text-left">Description</th>
+                <th className="p-3 text-right">Amount</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {data.map((e) => (
+                <tr
+                  key={e.id}
+                  className="border-t hover:bg-gray-50 transition"
+                >
+                  <td className="p-3">
+                    {new Date(e.date).toLocaleString()}
+                  </td>
+                  <td className="p-3">
+                    {e.description || "-"}
+                  </td>
+                  <td className="p-3 text-right font-medium">
+                    Rp {e.amount.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+
+              {data.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="p-6 text-center text-gray-400"
+                  >
+                    No expense yet
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
       </div>
     </div>
   );
