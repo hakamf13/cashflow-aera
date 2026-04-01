@@ -21,38 +21,49 @@ export async function GET() {
     today.setHours(0, 0, 0, 0);
 
     // 🔥 PARALLEL QUERY
-    const [income, profit, expense, transactions] = await Promise.all([
-      prisma.cashflow.aggregate({
-        where: { userId, type: "IN" },
-        _sum: { amount: true },
-      }),
-      prisma.transaction.aggregate({
-        where: { userId },
-        _sum: { totalProfit: true },
-      }),
-      prisma.cashflow.aggregate({
-        where: { userId, type: "OUT" },
-        _sum: { amount: true },
-      }),
-      prisma.transaction.findMany({
-        where: { userId },
-      }),
-    ]);
+    const [income, expense, profit, modal, todayTransactions] =
+      await Promise.all([
+        prisma.cashflow.aggregate({
+          where: { userId, type: "IN" },
+          _sum: { amount: true },
+        }),
+        prisma.cashflow.aggregate({
+          where: { userId, type: "OUT" },
+          _sum: { amount: true },
+        }),
+        prisma.transaction.aggregate({
+          where: { userId },
+          _sum: { totalProfit: true },
+        }),
+        prisma.cashflow.aggregate({
+          where: { userId, type: "MODAL" },
+          _sum: { amount: true },
+        }),
+
+        // 🔥 langsung filter di DB (lebih efisien)
+        prisma.transaction.findMany({
+          where: {
+            userId,
+            date: {
+              gte: today,
+            },
+          },
+        }),
+      ]);
 
     // 💰 TOTAL ALL TIME
     const totalIncome = income._sum.amount || 0;
     const totalExpense = expense._sum.amount || 0;
     const totalProfit = profit._sum.totalProfit || 0;
+    const totalModal = modal._sum.amount || 0;
 
     const sharing = totalProfit * 0.05;
     const netProfit = totalProfit - sharing;
-    const balance = totalIncome - totalExpense;
+
+    // 🔥 FIX LOGIC (pakai modal)
+    const balance = totalModal + totalIncome - totalExpense;
 
     // 📅 TODAY DATA
-    const todayTransactions = transactions.filter(
-      (t) => new Date(t.date) >= today
-    );
-
     const totalRevenueToday = todayTransactions.reduce(
       (sum, t) => sum + t.totalAmount,
       0
@@ -74,6 +85,7 @@ export async function GET() {
         totalTransactions: totalTransactionToday,
 
         // 🔹 all time
+        modal: totalModal, // ✅ NEW
         income: totalIncome,
         expense: totalExpense,
         profit: totalProfit,

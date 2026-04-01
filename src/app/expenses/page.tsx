@@ -7,7 +7,6 @@ export default function ExpensePage() {
   const [data, setData] = useState<any[]>([]);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [open, setOpen] = useState(false);
 
   const load = async () => {
     const res = await fetcher("/api/expenses");

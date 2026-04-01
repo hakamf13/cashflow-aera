@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
 
